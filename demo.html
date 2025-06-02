@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Risk Prediction App - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 4rem 0;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 0 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .features {
+            padding: 4rem 0;
+            background: white;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .feature-card p {
+            color: #666;
+        }
+
+        .how-it-works {
+            padding: 4rem 0;
+            background: #f8f9fa;
+        }
+
+        .how-it-works h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .step {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .step-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .step h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .step p {
+            color: #666;
+        }
+
+        .cta {
+            background: #f8f9fa;
+            padding: 4rem 0;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .cta p {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .demo-section {
+            background: white;
+            padding: 4rem 0;
+            text-align: center;
+        }
+
+        .demo-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem;
+            border-radius: 12px;
+            margin: 2rem auto;
+            max-width: 600px;
+        }
+
+        .demo-box h3 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .demo-box p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .tech-stack {
+            background: #f8f9fa;
+            padding: 4rem 0;
+        }
+
+        .tech-stack h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .tech-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tech-item h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        .disclaimer {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .feature-grid,
+            .steps,
+            .tech-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">Disease Risk Prediction</div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#tech">Technology</a>
+                <a href="#demo">Demo</a>
+            </div>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Disease Risk Prediction</h1>
+            <p>Personalized health risk assessment using artificial intelligence</p>
+            <p>Take control of your health with our comprehensive risk assessment tool. Get personalized insights and actionable recommendations based on your unique health profile.</p>
+            <a href="#demo" class="btn">View Demo</a>
+            <a href="https://github.com/av1mkhurana/disease-risk-prediction-app" class="btn btn-outline" target="_blank">View on GitHub</a>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Why Choose Our Platform?</h2>
+            <p style="text-align: center; color: #666; max-width: 800px; margin: 0 auto;">
+                Our disease risk prediction platform combines cutting-edge AI technology with medical expertise to provide you with accurate, personalized health insights.
+            </p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI-Powered Risk Assessment</h3>
+                    <p>Advanced machine learning models analyze your health data to provide personalized disease risk predictions.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy & Security First</h3>
+                    <p>Your health data is encrypted and protected with industry-leading security measures.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Comprehensive Analysis</h3>
+                    <p>Get detailed insights into your health risks with actionable recommendations.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📚</div>
+                    <h3>Educational Resources</h3>
+                    <p>Access evidence-based health information and prevention strategies.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Complete Your Profile</h3>
+                    <p>Provide your demographics, lifestyle, and medical history information.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>AI Analysis</h3>
+                    <p>Our machine learning models analyze your data to predict disease risks.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Get Recommendations</h3>
+                    <p>Receive personalized recommendations to reduce your health risks.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tech" class="tech-stack">
+        <div class="container">
+            <h2>Technology Stack</h2>
+            <div class="tech-grid">
+                <div class="tech-item">
+                    <h4>Frontend</h4>
+                    <p>React + TypeScript<br>Material-UI<br>Chart.js</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Backend</h4>
+                    <p>FastAPI (Python)<br>PostgreSQL<br>JWT Auth</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Machine Learning</h4>
+                    <p>Scikit-learn<br>Random Forest<br>Feature Engineering</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Security</h4>
+                    <p>Field-level Encryption<br>HTTPS/TLS<br>GDPR Compliant</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Infrastructure</h4>
+                    <p>Docker<br>PostgreSQL<br>RESTful API</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Development</h4>
+                    <p>TypeScript<br>Testing<br>Documentation</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="demo-section">
+        <div class="container">
+            <h2>Application Demo</h2>
+            <div class="demo-box">
+                <h3>🚀 Project Successfully Created!</h3>
+                <p>The Disease Risk Prediction App has been successfully set up with:</p>
+                <ul style="text-align: left; max-width: 400px; margin: 0 auto;">
+                    <li>✅ Complete FastAPI backend with ML integration</li>
+                    <li>✅ React + TypeScript frontend with Material-UI</li>
+                    <li>✅ PostgreSQL database with encryption</li>
+                    <li>✅ Docker development environment</li>
+                    <li>✅ GitHub repository created</li>
+                    <li>✅ Comprehensive documentation</li>
+                </ul>
+                <br>
+                <p><strong>Repository:</strong> <a href="https://github.com/av1mkhurana/disease-risk-prediction-app" target="_blank" style="color: #fff; text-decoration: underline;">github.com/av1mkhurana/disease-risk-prediction-app</a></p>
+            </div>
+            
+            <div style="margin-top: 3rem;">
+                <h3>To Run the Application:</h3>
+                <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 2rem 0; text-align: left; max-width: 600px; margin: 2rem auto;">
+                    <h4>Prerequisites:</h4>
+                    <p>Install Node.js, Python, and Docker on your system.</p>
+                    
+                    <h4>Quick Start:</h4>
+                    <pre style="background: #333; color: #fff; padding: 1rem; border-radius: 4px; overflow-x: auto;">
+git clone https://github.com/av1mkhurana/disease-risk-prediction-app.git
+cd disease-risk-prediction-app
+docker-compose up --build</pre>
+                    
+                    <h4>Access Points:</h4>
+                    <ul>
+                        <li><strong>Frontend:</strong> http://localhost:3000</li>
+                        <li><strong>Backend API:</strong> http://localhost:8000</li>
+                        <li><strong>API Docs:</strong> http://localhost:8000/docs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta">
+        <div class="container">
+            <h2>Ready to Take Control of Your Health?</h2>
+            <p>Join thousands of users who are already using our platform to make informed health decisions.</p>
+            <a href="https://github.com/av1mkhurana/disease-risk-prediction-app" class="btn" target="_blank">Get Started on GitHub</a>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="disclaimer">
+            <strong>Medical Disclaimer:</strong> This application is for educational and informational purposes only. 
+            It is not intended to replace professional medical advice, diagnosis, or treatment. 
+            Always seek the advice of qualified health providers with questions about medical conditions.
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Disease Risk Prediction App. Built with ❤️ for better health outcomes.</p>
+            <p>Open source project available on <a href="https://github.com/av1mkhurana/disease-risk-prediction-app" target="_blank" style="color: #667eea;">GitHub</a></p>
+        </div>
+    </footer>
+</body>
+</html>
