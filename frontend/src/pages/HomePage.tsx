@@ -31,7 +31,7 @@ const HomePage: React.FC = () => {
       icon: <Psychology sx={{ fontSize: 48, color: 'primary.main' }} />,
       title: 'AI That Understands You',
       description: 'Our machine learning models are trained on millions of health profiles to understand your unique risk factors and provide insights tailored specifically to you.',
-      benefit: 'Personalized predictions with 94% accuracy'
+      benefit: 'Personalized predictions with high accuracy'
     },
     {
       icon: <Shield sx={{ fontSize: 48, color: 'primary.main' }} />,
@@ -54,9 +54,9 @@ const HomePage: React.FC = () => {
   ];
 
   const stats = [
-    { number: '94%', label: 'Prediction Accuracy' },
-    { number: '50K+', label: 'Lives Improved' },
-    { number: '15+', label: 'Disease Types' },
+    { number: 'AI', label: 'Powered Analysis' },
+    { number: '2min', label: 'Quick Assessment' },
+    { number: '15+', label: 'Risk Factors' },
     { number: '5-10', label: 'Years Early Detection' },
   ];
 
@@ -77,7 +77,7 @@ const HomePage: React.FC = () => {
       >
         <Box sx={{ position: 'relative', zIndex: 2 }}>
           <Chip 
-            label="🚀 Early Access - Join 50,000+ Users" 
+            label="🚀 Early Access - AI-Powered Health Insights" 
             sx={{ 
               mb: 3, 
               bgcolor: 'rgba(255,255,255,0.2)', 
@@ -113,17 +113,17 @@ const HomePage: React.FC = () => {
             ))}
           </Grid>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Button
               variant="contained"
               size="large"
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/assessment')}
               sx={{
                 bgcolor: 'white',
                 color: 'primary.main',
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
+                px: 6,
+                py: 2,
+                fontSize: '1.2rem',
                 fontWeight: 'bold',
                 '&:hover': {
                   bgcolor: 'grey.100',
@@ -132,27 +132,9 @@ const HomePage: React.FC = () => {
                 transition: 'all 0.3s ease',
               }}
             >
-              Start Free Assessment
+              Start Free Assessment Now
             </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              onClick={() => navigate('/login')}
-              sx={{
-                borderColor: 'white',
-                color: 'white',
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                '&:hover': {
-                  borderColor: 'white',
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                },
-              }}
-            >
-              I Have an Account
-            </Button>
-          </Stack>
+          </Box>
         </Box>
       </Box>
 
@@ -163,15 +145,15 @@ const HomePage: React.FC = () => {
         icon={<Security />}
       >
         <Typography variant="body2">
-          <strong>Trusted by healthcare professionals</strong> • HIPAA Compliant • Bank-level encryption • 
-          Used by 50+ medical institutions worldwide
+          <strong>Built for healthcare professionals</strong> • Privacy-focused design • Secure data handling • 
+          Research-backed AI models
         </Typography>
       </Alert>
 
       {/* Features Section */}
       <Box sx={{ mb: 8 }}>
         <Typography variant="h2" component="h2" textAlign="center" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Why 50,000+ People Trust Us With Their Health
+          Why Choose Our AI Health Platform
         </Typography>
         <Typography
           variant="body1"
@@ -179,8 +161,8 @@ const HomePage: React.FC = () => {
           color="text.secondary"
           sx={{ mb: 6, maxWidth: 800, mx: 'auto', fontSize: '1.1rem' }}
         >
-          We're not just another health app. We're your early warning system, built by medical experts and 
-          powered by AI that learns from millions of health outcomes.
+          We're not just another health app. We're your early warning system, built to improve health outcomes and 
+          powered by cutting-edge AI technology for personalized health insights.
         </Typography>
         
         <Grid container spacing={4}>
@@ -227,7 +209,7 @@ const HomePage: React.FC = () => {
           Your Health Journey in 3 Simple Steps
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 6, maxWidth: 600, mx: 'auto' }}>
-          Getting started takes just 10 minutes. Our AI does the heavy lifting while you focus on living healthier.
+          Getting started takes just 2 minutes. Our AI does the heavy lifting while you focus on living healthier.
         </Typography>
         
         <Grid container spacing={4} sx={{ mt: 4 }}>
@@ -256,10 +238,10 @@ const HomePage: React.FC = () => {
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                 Answer questions about your lifestyle, family history, and current health. 
-                Takes 10 minutes, protects you for life.
+                Takes 2 minutes, protects you for life.
               </Typography>
               <Typography variant="caption" color="primary.main" sx={{ mt: 1, display: 'block', fontWeight: 'bold' }}>
-                ⏱️ 10 minutes • 🔒 Fully encrypted
+                ⏱️ 2 minutes • 🔒 Fully encrypted
               </Typography>
             </Box>
           </Grid>
@@ -288,10 +270,10 @@ const HomePage: React.FC = () => {
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                 Our AI compares your profile against millions of health outcomes to identify 
-                your personal risk factors with 94% accuracy.
+                your personal risk factors with high accuracy.
               </Typography>
               <Typography variant="caption" color="primary.main" sx={{ mt: 1, display: 'block', fontWeight: 'bold' }}>
-                🤖 AI-powered • 📊 94% accuracy
+                🤖 AI-powered • 📊 High accuracy
               </Typography>
             </Box>
           </Grid>
@@ -330,21 +312,19 @@ const HomePage: React.FC = () => {
         </Grid>
       </Box>
 
-      {/* Social Proof Section */}
+      {/* Mission Section */}
       <Box sx={{ mb: 8, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 4, p: 6 }}>
         <Typography variant="h3" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
-          "This App Saved My Life"
+          Our Mission: Preventive Healthcare for Everyone
         </Typography>
-        <Typography variant="body1" sx={{ mb: 3, fontStyle: 'italic', maxWidth: 600, mx: 'auto' }}>
-          "The AI detected my diabetes risk 3 years before my doctor did. I made lifestyle changes and 
-          my latest tests show I'm no longer pre-diabetic. I can't thank this app enough."
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          - Sarah M., Teacher, Age 34
+        <Typography variant="body1" sx={{ mb: 3, maxWidth: 600, mx: 'auto', lineHeight: 1.6 }}>
+          We believe everyone deserves access to advanced health insights. Our AI technology makes 
+          sophisticated risk assessment accessible, helping you make informed decisions about your health 
+          before problems develop.
         </Typography>
         <Box sx={{ mt: 4 }}>
-          <Typography variant="body2" color="text.secondary">
-            Join 50,000+ people who've taken control of their health
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            Early detection. Better outcomes. Healthier lives.
           </Typography>
         </Box>
       </Box>
@@ -364,14 +344,14 @@ const HomePage: React.FC = () => {
           Your Future Self Will Thank You
         </Typography>
         <Typography variant="body1" sx={{ mb: 4, opacity: 0.9, maxWidth: 500, mx: 'auto' }}>
-          Don't wait for symptoms. Take 10 minutes today to understand your health risks and 
+          Don't wait for symptoms. Take 2 minutes today to understand your health risks and 
           get a personalized plan to prevent disease.
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
           <Button
             variant="contained"
             size="large"
-            onClick={() => navigate('/register')}
+            onClick={() => navigate('/assessment')}
             sx={{
               bgcolor: 'white',
               color: 'primary.main',
@@ -387,7 +367,7 @@ const HomePage: React.FC = () => {
             Start Free Assessment Now
           </Button>
           <Typography variant="caption" sx={{ alignSelf: 'center', opacity: 0.8 }}>
-            Free • No credit card required • 2 minutes to sign up
+            Free • No credit card required • No signup needed
           </Typography>
         </Stack>
       </Box>
