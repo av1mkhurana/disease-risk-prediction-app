@@ -3,7 +3,8 @@ Configuration settings for the Disease Risk Prediction API
 """
 
 from typing import List, Optional
-from pydantic import BaseSettings, validator
+from pydantic_settings import BaseSettings
+from pydantic import field_validator
 import os
 
 
@@ -22,6 +23,14 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost/disease_risk_db"
+    
+    # Supabase
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
+    
+    # Groq AI
+    GROQ_API_KEY: Optional[str] = None
     
     # CORS
     ALLOWED_HOSTS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
@@ -43,17 +52,16 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    @validator("ALLOWED_HOSTS", pre=True)
-    def assemble_cors_origins(cls, v):
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True
+    }
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    def get_allowed_hosts(self) -> List[str]:
+        """Get ALLOWED_HOSTS as a list"""
+        if isinstance(self.ALLOWED_HOSTS, str):
+            return [host.strip() for host in self.ALLOWED_HOSTS.split(",")]
+        return self.ALLOWED_HOSTS
 
 
 # Create settings instance
