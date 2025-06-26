@@ -1,7 +1,7 @@
 // Type definitions for the Disease Risk Prediction App
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   full_name?: string;
   is_active: boolean;
@@ -10,7 +10,7 @@ export interface User {
 
 export interface UserProfile {
   id: number;
-  user_id: number;
+  user_id: string;
   // Demographics
   age?: string;
   sex?: string;
@@ -38,7 +38,7 @@ export interface UserProfile {
 
 export interface LabResult {
   id: number;
-  user_id: number;
+  user_id: string;
   test_name: string;
   test_value: string;
   test_unit?: string;
@@ -47,11 +47,13 @@ export interface LabResult {
   lab_name?: string;
   doctor_name?: string;
   notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface RiskPrediction {
   id: number;
-  user_id: number;
+  user_id: string;
   disease_name: string;
   risk_score: string;
   risk_category: 'Low' | 'Medium' | 'High';

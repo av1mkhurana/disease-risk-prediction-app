@@ -16,6 +16,13 @@ import {
   Paper,
   Stack,
   Divider,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Favorite,
@@ -28,8 +35,15 @@ import {
   Science,
   TrendingUp,
   Groups,
+  Insights,
+  ExpandMore,
+  Psychology,
+  Lightbulb,
+  TrendingDown,
+  AccessTime,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 interface RiskPrediction {
   risk_score: number;
@@ -49,14 +63,19 @@ const PredictionPage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { session } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [predictions, setPredictions] = useState<Record<string, RiskPrediction>>({});
   const [healthIndex, setHealthIndex] = useState<HealthVitalityIndex | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const processResults = async () => {
       try {
+        // Clear any previous results to force fresh API call
+        localStorage.removeItem('latestHealthResults');
+        
         const savedData = localStorage.getItem('healthAssessmentData');
         if (!savedData) {
           setLoading(false);
@@ -68,14 +87,22 @@ const PredictionPage: React.FC = () => {
         // Try to call the actual Groq AI backend API
         let response;
         try {
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+          };
+          
+          // Add authorization header if user is authenticated
+          if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+          }
+          
           response = await fetch('http://localhost:8000/api/v1/predictions/predict', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
               include_lab_results: true,
-              prediction_types: ["heart_disease", "diabetes", "cancer"]
+              prediction_types: ["heart_disease", "diabetes", "cancer"],
+              user_data: data // Send actual user data from assessment
             })
           });
         } catch (error) {
@@ -92,17 +119,23 @@ const PredictionPage: React.FC = () => {
           aiPredictions.predictions.forEach((pred: any) => {
             const diseaseKey = pred.disease_name.toLowerCase().replace(' ', '_');
             formattedPredictions[diseaseKey] = {
-              risk_score: pred.risk_score / 100, // Convert percentage to decimal
+              risk_score: pred.risk_score / 100, // Convert percentage to decimal for progress bars
               risk_percentage: `${pred.risk_score}%`,
               risk_category: pred.risk_category,
-              confidence: pred.confidence_score / 100,
+              confidence: pred.confidence_score / 100, // Convert percentage to decimal for display
               algorithm: "Groq AI - Llama-4"
             };
           });
 
-          // Create health vitality index from AI predictions
-          const avgRisk = Object.values(formattedPredictions).reduce((sum, pred) => sum + pred.risk_score, 0) / Object.values(formattedPredictions).length;
-          const healthScore = Math.round(100 - (avgRisk * 100));
+          // Create health vitality index from AI predictions or overall assessment
+          let healthScore = 75; // Default fallback
+          if (aiPredictions.overall_assessment?.health_score) {
+            healthScore = aiPredictions.overall_assessment.health_score;
+          } else {
+            // Calculate from risk scores if no overall assessment
+            const avgRisk = Object.values(formattedPredictions).reduce((sum, pred) => sum + pred.risk_score, 0) / Object.values(formattedPredictions).length;
+            healthScore = Math.round(100 - (avgRisk * 100));
+          }
           
           const healthIndex: HealthVitalityIndex = {
             score: healthScore,
@@ -110,27 +143,29 @@ const PredictionPage: React.FC = () => {
             description: getHealthDescription(healthScore)
           };
 
+          // Store comprehensive data including Llama-4 reasoning
+          const comprehensiveData = {
+            predictions: formattedPredictions,
+            healthIndex,
+            lifeExpectancy: aiPredictions.life_expectancy,
+            llamaReasoning: aiPredictions.llama_reasoning,
+            comprehensiveRecommendations: aiPredictions.comprehensive_recommendations,
+            analysisNotes: aiPredictions.analysis_notes
+          };
+
           setPredictions(formattedPredictions);
           setHealthIndex(healthIndex);
+          
+          // Store comprehensive data for integrated display
+          localStorage.setItem('comprehensiveHealthData', JSON.stringify(comprehensiveData));
         } else {
-          // Fallback to mock predictions if API fails
-          console.warn('AI API failed, using fallback predictions');
-          const mockPredictions = generateMedicalPredictions(data);
-          const { health_vitality_index, ...riskPredictions } = mockPredictions;
-          setPredictions(riskPredictions);
-          setHealthIndex(health_vitality_index);
+          // No fallback - show error if API fails
+          throw new Error(`API request failed with status: ${response?.status || 'Network Error'}`);
         }
       } catch (error) {
         console.error('Error calling AI predictions:', error);
-        // Fallback to mock predictions on error
-        const savedData = localStorage.getItem('healthAssessmentData');
-        if (savedData) {
-          const data = JSON.parse(savedData);
-          const mockPredictions = generateMedicalPredictions(data);
-          const { health_vitality_index, ...riskPredictions } = mockPredictions;
-          setPredictions(riskPredictions);
-          setHealthIndex(health_vitality_index);
-        }
+        // Set error state instead of throwing
+        setError('Unable to generate predictions. Please ensure the AI service is running and try again.');
       } finally {
         setLoading(false);
       }
@@ -139,107 +174,6 @@ const PredictionPage: React.FC = () => {
     processResults();
   }, []);
 
-  const generateMedicalPredictions = (userData: any) => {
-    // Simulate the new medical risk predictor
-    const age = userData.age || 35;
-    const gender = userData.gender || 'male';
-    const height = userData.height || 170;
-    const weight = userData.weight || 70;
-    const bmi = weight / ((height / 100) ** 2);
-    
-    // Framingham Risk Score simulation
-    let heartRisk = getBaselineHeartRisk(age, gender);
-    if (userData.smokingStatus?.includes('current')) heartRisk *= 2.0;
-    if (bmi >= 30) heartRisk *= 1.5;
-    if (userData.activityLevel === 'sedentary') heartRisk *= 1.4;
-    if (userData.familyHeartDisease) heartRisk *= 1.5;
-    heartRisk = Math.min(heartRisk, 80) / 100;
-    
-    // ADA Diabetes Risk simulation
-    let diabetesRisk = getBaselineDiabetesRisk(gender);
-    if (age >= 45) diabetesRisk *= 1.5 ** ((age - 45) / 10);
-    if (bmi >= 35) diabetesRisk *= 3.5;
-    else if (bmi >= 30) diabetesRisk *= 2.5;
-    else if (bmi >= 25) diabetesRisk *= 1.3;
-    if (userData.familyDiabetes) diabetesRisk *= 4.0;
-    if (userData.activityLevel === 'sedentary') diabetesRisk *= 1.8;
-    diabetesRisk = Math.min(diabetesRisk * 0.15, 60) / 100;
-    
-    // NCI Cancer Risk simulation
-    let cancerRisk = getBaselineCancerRisk(gender);
-    if (age >= 50) cancerRisk *= 1.8;
-    if (userData.smokingStatus?.includes('current')) cancerRisk *= 2.5;
-    if (userData.familyCancer) cancerRisk *= 1.8;
-    if (userData.alcoholConsumption === 'heavy') cancerRisk *= 1.4;
-    cancerRisk = Math.min(cancerRisk * 0.12, 50) / 100;
-    
-    // Calculate Health Vitality Index
-    const weightedRisk = heartRisk * 0.40 + cancerRisk * 0.35 + diabetesRisk * 0.25;
-    let healthScore = 100 - (weightedRisk * 100);
-    
-    // Add health bonuses
-    if (userData.activityLevel === 'active') healthScore += 8;
-    if (userData.sleepHours >= 7 && userData.sleepHours <= 9) healthScore += 5;
-    if (userData.stressLevel <= 3) healthScore += 5;
-    if (userData.smokingStatus === 'never') healthScore += 10;
-    
-    healthScore = Math.round(Math.min(100, Math.max(0, healthScore)));
-    
-    return {
-      heart_disease: {
-        risk_score: heartRisk,
-        risk_percentage: `${(heartRisk * 100).toFixed(1)}%`,
-        risk_category: categorizeRisk(heartRisk),
-        confidence: 0.89,
-        algorithm: "Framingham Risk Score"
-      },
-      diabetes: {
-        risk_score: diabetesRisk,
-        risk_percentage: `${(diabetesRisk * 100).toFixed(1)}%`,
-        risk_category: categorizeRisk(diabetesRisk),
-        confidence: 0.92,
-        algorithm: "ADA Risk Calculator"
-      },
-      cancer: {
-        risk_score: cancerRisk,
-        risk_percentage: `${(cancerRisk * 100).toFixed(1)}%`,
-        risk_category: categorizeRisk(cancerRisk),
-        confidence: 0.85,
-        algorithm: "NCI Risk Models"
-      },
-      health_vitality_index: {
-        score: healthScore,
-        category: categorizeHealthScore(healthScore),
-        description: getHealthDescription(healthScore)
-      }
-    };
-  };
-
-  const getBaselineHeartRisk = (age: number, gender: string) => {
-    const baselines = {
-      male: { "20-29": 0.5, "30-39": 2.0, "40-49": 5.0, "50-59": 10.0, "60-69": 18.0, "70-79": 25.0 },
-      female: { "20-29": 0.2, "30-39": 1.0, "40-49": 2.5, "50-59": 6.0, "60-69": 12.0, "70-79": 18.0 }
-    };
-    
-    const ageGroup = age < 30 ? "20-29" : age < 40 ? "30-39" : age < 50 ? "40-49" : 
-                    age < 60 ? "50-59" : age < 70 ? "60-69" : "70-79";
-    
-    return baselines[gender as keyof typeof baselines]?.[ageGroup as keyof typeof baselines.male] || 5.0;
-  };
-
-  const getBaselineDiabetesRisk = (gender: string) => {
-    return gender === 'male' ? 42.0 : 38.0;
-  };
-
-  const getBaselineCancerRisk = (gender: string) => {
-    return gender === 'male' ? 39.7 : 37.6;
-  };
-
-  const categorizeRisk = (risk: number): 'Low' | 'Medium' | 'High' => {
-    if (risk < 0.10) return 'Low';
-    if (risk < 0.20) return 'Medium';
-    return 'High';
-  };
 
   const categorizeHealthScore = (score: number) => {
     if (score >= 90) return 'Excellent';
@@ -382,6 +316,223 @@ const PredictionPage: React.FC = () => {
     );
   };
 
+  const ComprehensiveResultsSection: React.FC = () => {
+    const [comprehensiveData, setComprehensiveData] = useState<any>(null);
+
+    useEffect(() => {
+      const data = localStorage.getItem('comprehensiveHealthData');
+      if (data) {
+        try {
+          setComprehensiveData(JSON.parse(data));
+        } catch (e) {
+          console.error('Error parsing comprehensive data:', e);
+        }
+      }
+    }, []);
+
+    if (!comprehensiveData) {
+      return null;
+    }
+
+    const { lifeExpectancy, llamaReasoning, comprehensiveRecommendations } = comprehensiveData;
+
+    return (
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', mb: 3 }}>
+          Comprehensive Health Analysis
+        </Typography>
+        
+        {/* Llama-4 Health Score Reasoning */}
+        {llamaReasoning?.health_score_reasoning && (
+          <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Psychology sx={{ mr: 2, fontSize: 32 }} />
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                  AI Health Score Analysis
+                </Typography>
+              </Box>
+              <Typography variant="body1" sx={{ lineHeight: 1.6, opacity: 0.95 }}>
+                {llamaReasoning.health_score_reasoning}
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Life Expectancy Analysis */}
+        {lifeExpectancy && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <AccessTime sx={{ mr: 2, fontSize: 32, color: 'primary.main' }} />
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                  Life Expectancy Analysis
+                </Typography>
+              </Box>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 3, textAlign: 'center', background: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)', color: 'white' }}>
+                    <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
+                      {lifeExpectancy.current_life_expectancy}
+                    </Typography>
+                    <Typography variant="h6">Years</Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Current Life Expectancy
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      {lifeExpectancy.years_remaining}
+                    </Typography>
+                    <Typography variant="h6">Years</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Years Remaining
+                    </Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                      +{Object.values(lifeExpectancy.potential_gains || {}).reduce((sum: number, gain: any) => sum + (typeof gain === 'number' ? gain : 0), 0).toFixed(1)}
+                    </Typography>
+                    <Typography variant="h6">Years</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Potential Gains
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {lifeExpectancy.potential_gains && Object.keys(lifeExpectancy.potential_gains).length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Potential Life Expectancy Gains
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {Object.entries(lifeExpectancy.potential_gains).map(([improvement, years]: [string, any]) => (
+                      <Grid item xs={12} sm={6} key={improvement}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', p: 2, border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                          <TrendingUp sx={{ mr: 2, color: 'success.main' }} />
+                          <Box>
+                            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                              +{typeof years === 'number' ? years.toFixed(1) : years} years
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {improvement.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI Lifestyle Improvements */}
+        {llamaReasoning?.lifestyle_improvements && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Lightbulb sx={{ mr: 2, fontSize: 32, color: 'warning.main' }} />
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                  AI-Powered Lifestyle Recommendations
+                </Typography>
+              </Box>
+              
+              <Grid container spacing={2}>
+                {llamaReasoning.lifestyle_improvements.map((improvement: string, index: number) => (
+                  <Grid item xs={12} key={index}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', p: 2, border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                      <Chip 
+                        label={index + 1} 
+                        size="small" 
+                        sx={{ mr: 2, mt: 0.5, backgroundColor: 'primary.main', color: 'white' }} 
+                      />
+                      <Typography variant="body1" sx={{ flex: 1 }}>
+                        {improvement}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Personalized Insights */}
+        {llamaReasoning?.personalized_insights && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Psychology sx={{ mr: 2, fontSize: 32, color: 'secondary.main' }} />
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                  Personalized Health Insights
+                </Typography>
+              </Box>
+              
+              <List>
+                {llamaReasoning.personalized_insights.map((insight: string, index: number) => (
+                  <ListItem key={index} sx={{ px: 0 }}>
+                    <ListItemIcon>
+                      <CheckCircle sx={{ color: 'success.main' }} />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={insight}
+                      primaryTypographyProps={{ variant: 'body1' }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Comprehensive Recommendations */}
+        {comprehensiveRecommendations && comprehensiveRecommendations.length > 0 && (
+          <Card>
+            <CardContent>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Complete Action Plan
+              </Typography>
+              
+              <Accordion defaultExpanded>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                    All Recommendations ({comprehensiveRecommendations.length})
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={2}>
+                    {comprehensiveRecommendations.map((recommendation: string, index: number) => (
+                      <Grid item xs={12} key={index}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', p: 2, backgroundColor: 'grey.50', borderRadius: 2 }}>
+                          <Chip 
+                            label={index + 1} 
+                            size="small" 
+                            sx={{ mr: 2, mt: 0.5, backgroundColor: 'secondary.main', color: 'white' }} 
+                          />
+                          <Typography variant="body1" sx={{ flex: 1 }}>
+                            {recommendation}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+    );
+  };
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -397,6 +548,31 @@ const PredictionPage: React.FC = () => {
           <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
             Using advanced AI to generate personalized predictions...
           </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Box sx={{ textAlign: 'center' }}>
+          <Button 
+            variant="contained" 
+            onClick={() => navigate('/data-collection')}
+            sx={{ mr: 2 }}
+          >
+            Retake Assessment
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
         </Box>
       </Container>
     );
@@ -610,8 +786,112 @@ const PredictionPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Comprehensive Results Section with Llama-4 Reasoning */}
+      <ComprehensiveResultsSection />
+
       {/* Action Buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
+        
+        <Button
+          variant="outlined"
+          size="large"
+          onClick={async () => {
+            // Save results to localStorage for dashboard access
+            const currentResults = {
+              healthVitalityIndex: healthIndex,
+              riskPredictions: predictions,
+              timestamp: new Date().toISOString(),
+              algorithms: predictions[Object.keys(predictions)[0]]?.algorithm || "AI-Powered Analysis"
+            };
+            
+            // Save to localStorage as backup
+            localStorage.setItem('latestHealthResults', JSON.stringify(currentResults));
+            
+            // Also save to historical tracking array
+            const existingHistory = localStorage.getItem('healthAssessmentHistory');
+            let historyArray = [];
+            
+            if (existingHistory) {
+              try {
+                historyArray = JSON.parse(existingHistory);
+              } catch (e) {
+                historyArray = [];
+              }
+            }
+            
+            // Add current results to history
+            historyArray.push(currentResults);
+            
+            // Keep only last 20 assessments to prevent localStorage bloat
+            if (historyArray.length > 20) {
+              historyArray = historyArray.slice(-20);
+            }
+            
+            // Save updated history
+            localStorage.setItem('healthAssessmentHistory', JSON.stringify(historyArray));
+            
+            // Save to Supabase if user is authenticated
+            if (session?.user) {
+              try {
+                const { supabase } = await import('../lib/supabase');
+                
+                // Save each disease prediction to risk_predictions table
+                const predictionInserts = Object.entries(predictions).map(([disease, prediction]) => ({
+                  user_id: session.user.id,
+                  disease_name: disease,
+                  risk_score: (prediction.risk_score * 100).toString(), // Convert to percentage string
+                  risk_category: prediction.risk_category,
+                  confidence_score: (prediction.confidence * 100).toString(),
+                  model_version: prediction.algorithm || "AI-Powered Analysis",
+                  features_used: ['age', 'gender', 'lifestyle', 'medical_history'],
+                  recommendations: [`Health Score: ${healthIndex.score}/100 (${healthIndex.category})`],
+                  prediction_date: new Date().toISOString(),
+                  is_active: true
+                }));
+
+                // Insert predictions into Supabase
+                const { error: predictionError } = await supabase
+                  .from('risk_predictions')
+                  .insert(predictionInserts);
+
+                if (predictionError) {
+                  console.error('Error saving predictions to Supabase:', predictionError);
+                } else {
+                  console.log('Successfully saved predictions to Supabase');
+                }
+
+                // Also save health vitality index as a lab result
+                const { error: labError } = await supabase
+                  .from('lab_results')
+                  .insert({
+                    user_id: session.user.id,
+                    test_name: 'Health Vitality Index',
+                    test_value: healthIndex.score.toString(),
+                    test_unit: '/100',
+                    reference_range: '0-100',
+                    test_date: new Date().toISOString(),
+                    lab_name: 'AI Health Assessment',
+                    notes: `${healthIndex.category} Health - ${healthIndex.description}`
+                  });
+
+                if (labError) {
+                  console.error('Error saving health score to lab_results:', labError);
+                } else {
+                  console.log('Successfully saved health score to lab_results');
+                }
+
+              } catch (error) {
+                console.error('Error saving to Supabase:', error);
+              }
+            }
+            
+            navigate('/dashboard');
+          }}
+          sx={{ px: 4, py: 1.5 }}
+        >
+          View My Dashboard
+        </Button>
+        
         <Button
           variant="outlined"
           startIcon={<Download />}
@@ -650,7 +930,7 @@ const PredictionPage: React.FC = () => {
         </Button>
         
         <Button
-          variant="contained"
+          variant="outlined"
           onClick={() => navigate('/data-collection')}
         >
           Retake Assessment

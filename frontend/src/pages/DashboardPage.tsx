@@ -52,6 +52,60 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { RiskPrediction, UserProfile, LabResult } from '../types';
 
+// Lab Results Card Component with Show More functionality
+const LabResultsCard: React.FC<{ labResults: LabResult[] }> = ({ labResults }) => {
+  const [showAll, setShowAll] = useState(false);
+  const displayResults = showAll ? labResults : labResults.slice(0, 3);
+
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Recent Lab Results
+        </Typography>
+        {labResults.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <Science sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary">
+              No lab results added yet
+            </Typography>
+          </Box>
+        ) : (
+          <List dense>
+            {displayResults.map((lab, index) => (
+              <React.Fragment key={lab.id}>
+                <ListItem>
+                  <ListItemIcon>
+                    <Science />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={lab.test_name}
+                    secondary={`${lab.test_value} ${lab.test_unit || ''} - ${new Date(lab.test_date).toLocaleDateString()}`}
+                  />
+                </ListItem>
+                {index < displayResults.length - 1 && <Divider />}
+              </React.Fragment>
+            ))}
+          </List>
+        )}
+      </CardContent>
+      <CardActions>
+        <Button size="small" href="/data-collection" startIcon={<Add />}>
+          Add Lab Results
+        </Button>
+        {labResults.length > 3 && (
+          <Button 
+            size="small" 
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? 'Show Less' : `Show More (${labResults.length - 3} more)`}
+          </Button>
+        )}
+      </CardActions>
+    </Card>
+  );
+};
+
 // Register Chart.js components
 ChartJS.register(
   CategoryScale,
@@ -83,11 +137,142 @@ const DashboardPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
-    if (!user) return;
-
     try {
       setError(null);
       
+      // Get ALL localStorage data for historical tracking
+      const latestResults = localStorage.getItem('latestHealthResults');
+      const historyData = localStorage.getItem('healthAssessmentHistory');
+      
+      let localPredictions: RiskPrediction[] = [];
+      let localLabResults: LabResult[] = [];
+      
+      // Process latest results
+      if (latestResults) {
+        try {
+          const results = JSON.parse(latestResults);
+          const { healthVitalityIndex, riskPredictions, timestamp, algorithms } = results;
+          
+            // Convert localStorage format to RiskPrediction format
+            localPredictions = Object.entries(riskPredictions).map(([disease, prediction]: [string, any], index) => ({
+              id: Date.now() + index,
+              user_id: user?.id || 'anonymous',
+              disease_name: disease,
+              risk_score: prediction.risk_score.toString(), // Already in decimal format (0.15 for 15%)
+              risk_category: prediction.risk_category,
+              confidence_score: prediction.confidence.toString(), // Already in decimal format (0.85 for 85%)
+              model_version: algorithms || prediction.algorithm,
+              prediction_date: timestamp,
+              is_active: true,
+              recommendations: [`Health Score: ${healthVitalityIndex.score}/100 (${healthVitalityIndex.category})`]
+            }));
+
+          // Add health vitality index as lab result
+          localLabResults.push({
+            id: Date.now(),
+            user_id: user?.id || 'anonymous',
+            test_name: 'Health Vitality Index',
+            test_value: healthVitalityIndex.score.toString(),
+            test_unit: '/100',
+            reference_range: '0-100',
+            test_date: timestamp,
+            lab_name: 'AI Health Assessment',
+            doctor_name: '',
+            notes: `${healthVitalityIndex.category} Health - ${healthVitalityIndex.description}`,
+            created_at: timestamp,
+            updated_at: timestamp
+          });
+        } catch (parseError) {
+          console.warn('Error parsing latest health results:', parseError);
+        }
+      }
+
+      // Process historical data
+      if (historyData) {
+        try {
+          const history = JSON.parse(historyData);
+          console.log('Processing historical data:', history.length, 'entries');
+          
+          history.forEach((entry: any, sessionIndex: number) => {
+            const { healthVitalityIndex, riskPredictions, timestamp, algorithms } = entry;
+            console.log(`Processing history entry ${sessionIndex}:`, { timestamp, diseases: Object.keys(riskPredictions || {}) });
+            
+            // Add historical predictions
+            if (riskPredictions) {
+              Object.entries(riskPredictions).forEach(([disease, prediction]: [string, any], index) => {
+                // Handle both decimal (0.15) and percentage (15) formats
+                let riskScore = prediction.risk_score;
+                if (typeof riskScore === 'number' && riskScore <= 1) {
+                  // It's in decimal format, convert to percentage
+                  riskScore = riskScore * 100;
+                }
+                
+                localPredictions.push({
+                  id: Date.now() + sessionIndex * 100 + index,
+                  user_id: user?.id || 'anonymous',
+                  disease_name: disease,
+                  risk_score: riskScore.toString(),
+                  risk_category: prediction.risk_category,
+                  confidence_score: ((prediction.confidence || 0.85) * 100).toString(),
+                  model_version: algorithms || prediction.algorithm || 'AI-Powered Analysis',
+                  prediction_date: timestamp,
+                  is_active: true,
+                  recommendations: [`Health Score: ${healthVitalityIndex?.score || 'N/A'}/100 (${healthVitalityIndex?.category || 'Unknown'})`]
+                });
+                
+                console.log(`Added historical prediction: ${disease} = ${riskScore}% on ${timestamp}`);
+              });
+            }
+
+            // Add historical health scores as lab results
+            if (healthVitalityIndex) {
+              localLabResults.push({
+                id: Date.now() + sessionIndex * 100,
+                user_id: user?.id || 'anonymous',
+                test_name: 'Health Vitality Index',
+                test_value: healthVitalityIndex.score.toString(),
+                test_unit: '/100',
+                reference_range: '0-100',
+                test_date: timestamp,
+                lab_name: 'AI Health Assessment',
+                doctor_name: '',
+                notes: `${healthVitalityIndex.category} Health - ${healthVitalityIndex.description}`,
+                created_at: timestamp,
+                updated_at: timestamp
+              });
+              
+              console.log(`Added historical health score: ${healthVitalityIndex.score}/100 on ${timestamp}`);
+            }
+          });
+        } catch (parseError) {
+          console.warn('Error parsing assessment history:', parseError);
+        }
+      }
+
+      if (!user) {
+        // If no user but we have local data, show it
+        const latestPredictions: RiskPrediction[] = [];
+        const seenDiseases = new Set();
+        
+        // Get latest prediction for each disease type
+        localPredictions
+          .sort((a, b) => new Date(b.prediction_date).getTime() - new Date(a.prediction_date).getTime())
+          .forEach((pred) => {
+            if (!seenDiseases.has(pred.disease_name)) {
+              latestPredictions.push(pred);
+              seenDiseases.add(pred.disease_name);
+            }
+          });
+
+        setDashboardData({
+          profile: null,
+          latestPredictions,
+          predictionHistory: localPredictions,
+          recentLabResults: localLabResults
+        });
+        return;
+      }
+
       // Fetch user profile
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
@@ -99,46 +284,64 @@ const DashboardPage: React.FC = () => {
         throw profileError;
       }
 
-      // Fetch latest predictions
-      const { data: predictions, error: predictionsError } = await supabase
+      // Fetch ALL predictions from Supabase for historical tracking
+      const { data: allSupabasePredictions, error: predictionsError } = await supabase
         .from('risk_predictions')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_active', true)
         .order('prediction_date', { ascending: false });
 
       if (predictionsError) {
         console.warn('Error fetching predictions:', predictionsError);
       }
 
-      // Get latest prediction for each disease type
-      const latestPredictions: RiskPrediction[] = [];
-      const seenDiseases = new Set();
+      // Combine local and remote predictions
+      const allPredictions = [...localPredictions, ...(allSupabasePredictions || [])];
       
-      (predictions || []).forEach((pred: any) => {
-        if (!seenDiseases.has(pred.disease_name)) {
-          latestPredictions.push(pred);
-          seenDiseases.add(pred.disease_name);
+      // Get latest prediction for each disease type (for current risk cards)
+      // Sort by date and keep only the most recent for each disease
+      const latestPredictions: RiskPrediction[] = [];
+      const diseaseMap = new Map();
+      
+      allPredictions.forEach((pred: any) => {
+        const diseaseKey = pred.disease_name.toLowerCase().replace(/[^a-z]/g, '_');
+        const predDate = new Date(pred.prediction_date).getTime();
+        
+        if (!diseaseMap.has(diseaseKey) || predDate > new Date(diseaseMap.get(diseaseKey).prediction_date).getTime()) {
+          diseaseMap.set(diseaseKey, pred);
         }
       });
+      
+      // Convert map values to array
+      latestPredictions.push(...Array.from(diseaseMap.values()));
 
-      // Fetch recent lab results
+      // Fetch ALL lab results for historical tracking
       const { data: labResults, error: labError } = await supabase
         .from('lab_results')
         .select('*')
         .eq('user_id', user.id)
-        .order('test_date', { ascending: false })
-        .limit(5);
+        .order('test_date', { ascending: false });
 
       if (labError) {
         console.warn('Error fetching lab results:', labError);
       }
 
+      // Combine and deduplicate lab results
+      const allLabResults = [...localLabResults, ...(labResults || [])];
+      
+      // Deduplicate lab results by test_name and test_date
+      const uniqueLabResults = allLabResults.filter((lab, index, self) => 
+        index === self.findIndex(l => 
+          l.test_name === lab.test_name && 
+          new Date(l.test_date).toDateString() === new Date(lab.test_date).toDateString()
+        )
+      );
+
       setDashboardData({
         profile: profile || null,
         latestPredictions,
-        predictionHistory: predictions || [],
-        recentLabResults: labResults || []
+        predictionHistory: allPredictions,
+        recentLabResults: uniqueLabResults
       });
 
     } catch (err: any) {
@@ -184,70 +387,235 @@ const DashboardPage: React.FC = () => {
   };
 
   const generateChartData = () => {
-    const { predictionHistory } = dashboardData;
+    const { predictionHistory, recentLabResults } = dashboardData;
     
-    if (!predictionHistory.length) return null;
+    if (!predictionHistory.length && !recentLabResults.length) return null;
 
-    // Group by disease and sort by date
-    const diseaseData: { [key: string]: { dates: string[], scores: number[] } } = {};
+    // Group predictions by date to create assessment sessions
+    const assessmentSessions: { [key: string]: any } = {};
     
+    // Debug: Log all disease names to see what we're working with
+    const uniqueDiseaseNames = Array.from(new Set(predictionHistory.map(pred => pred.disease_name)));
+    console.log('All disease names in prediction history:', uniqueDiseaseNames);
+    
+    // Process Supabase prediction history - use more precise grouping
     predictionHistory.forEach(pred => {
-      const disease = pred.disease_name;
-      const date = new Date(pred.prediction_date).toLocaleDateString();
-      const score = parseFloat(pred.risk_score);
+      // Use hour-level precision to group assessments from same session
+      const sessionKey = new Date(pred.prediction_date).toISOString().slice(0, 13); // YYYY-MM-DDTHH
       
-      if (!diseaseData[disease]) {
-        diseaseData[disease] = { dates: [], scores: [] };
+      if (!assessmentSessions[sessionKey]) {
+        assessmentSessions[sessionKey] = {
+          timestamp: pred.prediction_date,
+          riskPredictions: {},
+          healthVitalityIndex: { score: null }
+        };
       }
       
-      diseaseData[disease].dates.push(date);
-      diseaseData[disease].scores.push(score * 100); // Convert to percentage
-    });
-
-    // Get all unique dates and sort them
-    const allDates = Array.from(new Set(
-      Object.values(diseaseData).flatMap(data => data.dates)
-    )).sort();
-
-    const datasets = Object.entries(diseaseData).map(([disease, data], index) => {
-      const colors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0'];
-      return {
-        label: disease.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        data: allDates.map(date => {
-          const index = data.dates.indexOf(date);
-          return index !== -1 ? data.scores[index] : null;
-        }),
-        borderColor: colors[index % colors.length],
-        backgroundColor: colors[index % colors.length] + '20',
-        tension: 0.4,
-        spanGaps: true
+      // Convert risk_score - handle both decimal and percentage formats
+      let riskScore = parseFloat(pred.risk_score);
+      if (riskScore > 1) {
+        // Already a percentage, convert to decimal
+        riskScore = riskScore / 100;
+      }
+      
+      // Store with original disease name as key
+      assessmentSessions[sessionKey].riskPredictions[pred.disease_name] = {
+        risk_score: riskScore,
+        risk_category: pred.risk_category
       };
+      
+      // Debug: Log each prediction being processed
+      console.log(`Processing ${pred.disease_name}: ${riskScore * 100}% on ${sessionKey}`);
     });
+
+    // Process lab results to extract health vitality index
+    recentLabResults.forEach(lab => {
+      if (lab.test_name === 'Health Vitality Index') {
+        // Use hour-level precision to match with predictions
+        const sessionKey = new Date(lab.test_date).toISOString().slice(0, 13); // YYYY-MM-DDTHH
+        
+        if (assessmentSessions[sessionKey]) {
+          assessmentSessions[sessionKey].healthVitalityIndex.score = parseFloat(lab.test_value);
+        } else {
+          assessmentSessions[sessionKey] = {
+            timestamp: lab.test_date,
+            riskPredictions: {},
+            healthVitalityIndex: { score: parseFloat(lab.test_value) }
+          };
+        }
+        
+        console.log(`Added health score: ${lab.test_value}/100 on ${sessionKey}`);
+      }
+    });
+
+    const allHistory = Object.values(assessmentSessions);
+    
+    if (!allHistory.length) return null;
+
+    // Sort by timestamp
+    allHistory.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    // Prepare data for Chart.js
+    const labels = allHistory.map(entry => 
+      new Date(entry.timestamp).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    );
+
+    const datasets = [
+      {
+        label: 'Heart Disease Risk',
+        data: allHistory.map(entry => {
+          const heartData = entry.riskPredictions?.heart_disease;
+          return heartData ? heartData.risk_score * 100 : null;
+        }),
+        borderColor: '#e91e63',
+        backgroundColor: '#e91e63',
+        pointBackgroundColor: '#e91e63',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        tension: 0.1,
+        spanGaps: true
+      },
+      {
+        label: 'Diabetes Risk',
+        data: allHistory.map(entry => {
+          // Find any key that contains 'diabetes'
+          const diabetesKey = Object.keys(entry.riskPredictions).find(key => 
+            key.toLowerCase().includes('diabetes')
+          );
+          const diabetesData = diabetesKey ? entry.riskPredictions[diabetesKey] : null;
+          return diabetesData ? diabetesData.risk_score * 100 : null;
+        }),
+        borderColor: '#2196f3',
+        backgroundColor: '#2196f3',
+        pointBackgroundColor: '#2196f3',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        tension: 0.1,
+        spanGaps: true
+      },
+      {
+        label: 'Cancer Risk',
+        data: allHistory.map(entry => {
+          // Find any key that contains 'cancer'
+          const cancerKey = Object.keys(entry.riskPredictions).find(key => 
+            key.toLowerCase().includes('cancer')
+          );
+          const cancerData = cancerKey ? entry.riskPredictions[cancerKey] : null;
+          return cancerData ? cancerData.risk_score * 100 : null;
+        }),
+        borderColor: '#ff9800',
+        backgroundColor: '#ff9800',
+        pointBackgroundColor: '#ff9800',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        tension: 0.1,
+        spanGaps: true
+      },
+      {
+        label: 'Health Score',
+        data: allHistory.map(entry => entry.healthVitalityIndex?.score || null),
+        borderColor: '#4caf50',
+        backgroundColor: '#4caf50',
+        pointBackgroundColor: '#4caf50',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        tension: 0.1,
+        spanGaps: true,
+        yAxisID: 'y1'
+      }
+    ];
 
     return {
-      labels: allDates,
+      labels,
       datasets
     };
   };
 
   const chartOptions: ChartOptions<'line'> = {
     responsive: true,
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
+    },
     plugins: {
       legend: {
         position: 'top' as const,
       },
       title: {
         display: true,
-        text: 'Risk Score Trends Over Time'
+        text: 'Health Risk Trends Over Time',
+        font: {
+          size: 16,
+          weight: 'bold'
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.dataset.label || '';
+            const value = context.parsed.y;
+            if (label === 'Health Score') {
+              return `${label}: ${value}/100`;
+            } else {
+              return `${label}: ${value}%`;
+            }
+          }
+        }
       }
     },
     scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Assessment Date'
+        }
+      },
       y: {
+        type: 'linear' as const,
+        display: true,
+        position: 'left' as const,
         beginAtZero: true,
         max: 100,
+        title: {
+          display: true,
+          text: 'Risk Percentage (%)'
+        },
         ticks: {
           callback: function(value) {
             return value + '%';
+          }
+        }
+      },
+      y1: {
+        type: 'linear' as const,
+        display: true,
+        position: 'right' as const,
+        beginAtZero: true,
+        max: 100,
+        title: {
+          display: true,
+          text: 'Health Score'
+        },
+        grid: {
+          drawOnChartArea: false,
+        },
+        ticks: {
+          callback: function(value) {
+            return value + '/100';
           }
         }
       }
@@ -294,134 +662,14 @@ const DashboardPage: React.FC = () => {
           </Alert>
         )}
 
-        {/* Profile Completion Status */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Profile Completion
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <Box sx={{ width: '100%', mr: 1 }}>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={getProfileCompletionPercentage()} 
-                  sx={{ height: 8, borderRadius: 4 }}
-                />
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {getProfileCompletionPercentage()}%
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip
-                icon={dashboardData.profile?.demographics_complete ? <CheckCircle /> : <Schedule />}
-                label="Demographics"
-                color={dashboardData.profile?.demographics_complete ? "success" : "default"}
-                size="small"
-              />
-              <Chip
-                icon={dashboardData.profile?.lifestyle_complete ? <CheckCircle /> : <Schedule />}
-                label="Lifestyle"
-                color={dashboardData.profile?.lifestyle_complete ? "success" : "default"}
-                size="small"
-              />
-              <Chip
-                icon={dashboardData.profile?.medical_history_complete ? <CheckCircle /> : <Schedule />}
-                label="Medical History"
-                color={dashboardData.profile?.medical_history_complete ? "success" : "default"}
-                size="small"
-              />
-            </Box>
-          </CardContent>
-          {getProfileCompletionPercentage() < 100 && (
-            <CardActions>
-              <Button size="small" href="/data-collection" startIcon={<Person />}>
-                Complete Profile
-              </Button>
-            </CardActions>
-          )}
-        </Card>
 
-        {/* Risk Overview Cards */}
-        <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
-          Current Risk Assessment
-        </Typography>
-        
-        {dashboardData.latestPredictions.length === 0 ? (
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 4 }}>
-              <Assessment sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                No Risk Predictions Available
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Complete your profile to get personalized risk assessments
-              </Typography>
-              <Button 
-                variant="contained" 
-                href="/prediction"
-                startIcon={<TrendingUp />}
-                disabled={getProfileCompletionPercentage() < 67}
-              >
-                Get Risk Assessment
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Grid container spacing={3}>
-            {dashboardData.latestPredictions.map((prediction, index) => (
-              <Grid item xs={12} md={4} key={index}>
-                <Card sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Box sx={{ color: getRiskColor(prediction.risk_category), mr: 1 }}>
-                        {getRiskIcon(prediction.disease_name)}
-                      </Box>
-                      <Typography variant="h6" component="div">
-                        {prediction.disease_name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ textAlign: 'center', mb: 2 }}>
-                      <Typography variant="h3" sx={{ color: getRiskColor(prediction.risk_category) }}>
-                        {Math.round(parseFloat(prediction.risk_score) * 100)}%
-                      </Typography>
-                      <Chip
-                        label={prediction.risk_category}
-                        sx={{
-                          backgroundColor: getRiskColor(prediction.risk_category),
-                          color: 'white',
-                          fontWeight: 'bold'
-                        }}
-                        size="small"
-                      />
-                    </Box>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Confidence: {Math.round(parseFloat(prediction.confidence_score || '0'))}%
-                    </Typography>
-                    
-                    <Typography variant="body2" color="text.secondary">
-                      Last updated: {new Date(prediction.prediction_date).toLocaleDateString()}
-                    </Typography>
-                  </CardContent>
-                  <CardActions>
-                    <Button size="small" href="/prediction">
-                      View Details
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
 
         {/* Risk Trends Chart */}
-        {dashboardData.predictionHistory.length > 1 && (
+        {dashboardData.predictionHistory.length >= 1 && (
           <Card sx={{ mt: 4 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Risk Trends
+                Risk Trends ({dashboardData.predictionHistory.length} assessments)
               </Typography>
               <Box sx={{ height: 400 }}>
                 {generateChartData() && (
@@ -528,43 +776,9 @@ const DashboardPage: React.FC = () => {
 
           {/* Recent Lab Results */}
           <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Recent Lab Results
-                </Typography>
-                {dashboardData.recentLabResults.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 3 }}>
-                    <Science sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
-                      No lab results added yet
-                    </Typography>
-                  </Box>
-                ) : (
-                  <List dense>
-                    {dashboardData.recentLabResults.slice(0, 3).map((lab, index) => (
-                      <React.Fragment key={lab.id}>
-                        <ListItem>
-                          <ListItemIcon>
-                            <Science />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={lab.test_name}
-                            secondary={`${lab.test_value} ${lab.test_unit || ''} - ${new Date(lab.test_date).toLocaleDateString()}`}
-                          />
-                        </ListItem>
-                        {index < Math.min(dashboardData.recentLabResults.length - 1, 2) && <Divider />}
-                      </React.Fragment>
-                    ))}
-                  </List>
-                )}
-              </CardContent>
-              <CardActions>
-                <Button size="small" href="/data-collection" startIcon={<Add />}>
-                  Add Lab Results
-                </Button>
-              </CardActions>
-            </Card>
+            <LabResultsCard 
+              labResults={dashboardData.recentLabResults}
+            />
           </Grid>
         </Grid>
       </Box>

@@ -9,8 +9,10 @@ import DashboardPage from './pages/DashboardPage';
 import OnboardingPage from './pages/OnboardingPage';
 import DataCollectionPage from './pages/DataCollectionPage';
 import PredictionPage from './pages/PredictionPage';
+import ComprehensiveResultsPage from './pages/ComprehensiveResultsPage';
 import EducationPage from './pages/EducationPage';
 import PrivacyPage from './pages/PrivacyPage';
+import ApiTestPage from './pages/ApiTestPage';
 
 function App() {
   return (
@@ -29,8 +31,10 @@ function App() {
           <Route path="/data-collection" element={<DataCollectionPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/prediction" element={<PredictionPage />} />
+          <Route path="/comprehensive-results" element={<ComprehensiveResultsPage />} />
           <Route path="/education" element={<EducationPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/api-test" element={<ApiTestPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Container>

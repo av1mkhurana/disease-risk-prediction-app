@@ -364,3 +364,101 @@ Provide specific, actionable recommendations tailored to this individual's profi
             },
             "analysis_notes": "AI prediction service is temporarily unavailable. These are generic recommendations. Please consult with your healthcare provider for personalized medical advice."
         }
+    
+    async def generate_health_reasoning(self, user_data: Dict[str, Any], algorithm_results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generate Llama-4 reasoning for health score and lifestyle improvements
+        """
+        try:
+            health_score = algorithm_results.get('health_score', 75)
+            life_expectancy = algorithm_results.get('life_expectancy', {})
+            risk_assessments = algorithm_results.get('risk_assessments', [])
+            
+            # Create prompt for health reasoning
+            prompt = f"""Based on this health assessment, please provide detailed reasoning and personalized insights:
+
+HEALTH SCORE: {health_score}/100
+LIFE EXPECTANCY: {life_expectancy.get('current_life_expectancy', 'Unknown')} years
+RISK ASSESSMENTS: {[f"{r['disease_name']}: {r['risk_score']}%" for r in risk_assessments]}
+
+USER PROFILE:
+- Age: {user_data.get('age', 'Unknown')}
+- Sex: {user_data.get('sex', 'Unknown')}
+- Smoking: {user_data.get('tobacco_use', 'Unknown')}
+- Alcohol: {user_data.get('alcohol_consumption', 'Unknown')}
+- Exercise: {user_data.get('exercise_frequency', 'Unknown')}
+- BMI: {self._calculate_bmi(user_data)}
+
+Please provide a JSON response with:
+{{
+    "health_score_reasoning": "Detailed explanation of why this health score was calculated, mentioning specific factors",
+    "lifestyle_improvements": ["specific improvement 1", "specific improvement 2", "specific improvement 3", "specific improvement 4", "specific improvement 5"],
+    "personalized_insights": ["insight about their specific situation", "insight about their risk factors", "insight about their positive factors"]
+}}
+
+Focus on:
+1. Why their health score is what it is
+2. Specific lifestyle changes that would improve their score
+3. Personal insights based on their unique profile"""
+
+            # Make API call to Groq for reasoning
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    self.base_url,
+                    headers=self.headers,
+                    json={
+                        "model": self.model,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "You are a medical AI that provides clear, personalized health insights and reasoning. Always respond in valid JSON format."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        "temperature": 0.4,
+                        "max_tokens": 1000,
+                        "response_format": {"type": "json_object"}
+                    }
+                )
+            
+            if response.status_code == 200:
+                ai_response = response.json()
+                content = ai_response["choices"][0]["message"]["content"]
+                return json.loads(content)
+            else:
+                raise Exception(f"Groq API error: {response.status_code}")
+                
+        except Exception as e:
+            logger.warning(f"Llama-4 reasoning failed: {e}")
+            # Return fallback reasoning
+            return {
+                "health_score_reasoning": f"Your health score of {algorithm_results.get('health_score', 75)}/100 reflects your current lifestyle factors, age, and risk assessments. This score considers your smoking status, exercise habits, alcohol consumption, and other health indicators.",
+                "lifestyle_improvements": [
+                    "Increase physical activity to at least 150 minutes per week",
+                    "Maintain a balanced diet rich in fruits and vegetables",
+                    "Ensure adequate sleep (7-9 hours nightly)",
+                    "Manage stress through relaxation techniques",
+                    "Schedule regular health check-ups"
+                ],
+                "personalized_insights": [
+                    "Your assessment shows areas for potential improvement",
+                    "Focus on the highest-impact lifestyle changes first",
+                    "Small, consistent changes can lead to significant health improvements"
+                ]
+            }
+    
+    def _calculate_bmi(self, user_data: Dict[str, Any]) -> str:
+        """Calculate BMI from user data"""
+        try:
+            height_cm = float(user_data.get('height_cm', 0))
+            weight_kg = float(user_data.get('weight_kg', 0))
+            if height_cm > 0 and weight_kg > 0:
+                height_m = height_cm / 100
+                bmi = weight_kg / (height_m ** 2)
+                return f"{bmi:.1f}"
+            return "Unknown"
+        except (ValueError, ZeroDivisionError):
+            return "Unknown"
