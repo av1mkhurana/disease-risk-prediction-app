@@ -46,70 +46,87 @@ class PredictionResponse(BaseModel):
 @router.post("/predict")
 async def predict_disease_risk(request: PredictionRequest) -> Dict[str, Any]:
     """
-    Generate disease risk predictions using medical algorithms
-    Uses actual user data from localStorage
+    Generate disease risk predictions using Groq AI with Llama-4
+    Uses actual user data from assessment for dynamic, personalized predictions
     """
     try:
-        # Get user data from request body
-        # Default to sample data if not provided
-        user_data = request.user_data or {
-            "age": 35,
-            "sex": "male",
-            "height_cm": 175,
-            "weight_kg": 75,
-            "ethnicity": "caucasian",
-            "diet_type": "balanced",
-            "exercise_frequency": "3-4 times per week",
-            "sleep_hours": 7,
-            "tobacco_use": "never",
-            "alcohol_consumption": "moderate",
-            "occupation": "office worker",
-            "past_diagnoses": [],
-            "family_history": [],
-            "current_symptoms": [],
-            "medications": [],
-            "lab_results": []
-        }
+        # Validate that user data is provided
+        if not request.user_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User assessment data is required for predictions"
+            )
         
-        # Use evidence-based medical algorithms
-        algorithm_framework = MedicalAlgorithmFramework()
-        algorithm_results = algorithm_framework.comprehensive_risk_assessment(user_data)
+        user_data = request.user_data
+        logger.info(f"Generating AI predictions for user data: {list(user_data.keys())}")
         
-        # Try to get Llama-4 reasoning for health score and recommendations
+        # Primary method: Use Groq AI for dynamic predictions
         try:
             groq_service = get_groq_service()
-            llama_reasoning = await groq_service.generate_health_reasoning(user_data, algorithm_results)
+            ai_predictions = await groq_service.predict_disease_risks(user_data)
+            
+            # Add life expectancy calculation using medical algorithms
+            try:
+                algorithm_framework = MedicalAlgorithmFramework()
+                algorithm_results = algorithm_framework.comprehensive_risk_assessment(user_data)
+                
+                # Add life expectancy and comprehensive recommendations to AI predictions
+                ai_predictions["life_expectancy"] = algorithm_results["life_expectancy"]
+                ai_predictions["comprehensive_recommendations"] = algorithm_results["comprehensive_recommendations"]
+                
+                # Generate Llama-4 reasoning for the results
+                llama_reasoning = await groq_service.generate_health_reasoning(user_data, algorithm_results)
+                ai_predictions["llama_reasoning"] = llama_reasoning
+                
+            except Exception as e:
+                logger.warning(f"Algorithm framework failed, using AI-only results: {e}")
+                # AI predictions already contain the core data, just add fallback reasoning
+                ai_predictions["llama_reasoning"] = {
+                    "health_score_reasoning": f"AI-powered analysis based on your comprehensive health assessment data.",
+                    "lifestyle_improvements": ["Maintain regular exercise", "Follow a balanced diet", "Get adequate sleep", "Manage stress effectively", "Schedule regular health check-ups"],
+                    "personalized_insights": ["Your assessment has been analyzed using advanced AI", "Focus on the recommendations provided", "Consult healthcare providers for medical decisions"]
+                }
+            
+            logger.info("Successfully generated AI-powered predictions")
+            return ai_predictions
+            
         except Exception as e:
-            logger.warning(f"Llama-4 reasoning failed, using fallback: {e}")
-            llama_reasoning = {
-                "health_score_reasoning": f"Your health score of {algorithm_results['health_score']}/100 is based on evidence-based medical algorithms considering your age, lifestyle factors, and risk assessments.",
-                "lifestyle_improvements": algorithm_results["comprehensive_recommendations"][:5],
-                "personalized_insights": ["Complete medical assessment completed using validated clinical algorithms."]
+            logger.error(f"Groq AI prediction failed: {e}")
+            
+            # Fallback method: Use medical algorithms if AI fails
+            logger.info("Falling back to medical algorithms")
+            algorithm_framework = MedicalAlgorithmFramework()
+            algorithm_results = algorithm_framework.comprehensive_risk_assessment(user_data)
+            
+            # Convert algorithm results to expected format
+            fallback_predictions = {
+                "predictions": algorithm_results["risk_assessments"],
+                "model_version": f"{algorithm_results['algorithm_framework']} (AI Fallback)",
+                "prediction_date": algorithm_results["assessment_date"],
+                "confidence_scores": {
+                    assessment["disease_name"].lower().replace(" ", "_"): assessment["confidence_score"] / 100
+                    for assessment in algorithm_results["risk_assessments"]
+                },
+                "overall_assessment": {
+                    "health_score": algorithm_results["health_score"],
+                    "primary_concerns": [],
+                    "positive_factors": [],
+                    "immediate_actions": algorithm_results["comprehensive_recommendations"][:3]
+                },
+                "life_expectancy": algorithm_results["life_expectancy"],
+                "comprehensive_recommendations": algorithm_results["comprehensive_recommendations"],
+                "analysis_notes": f"Evidence-based medical algorithms (AI service unavailable). Life expectancy: {algorithm_results['life_expectancy']['current_life_expectancy']} years",
+                "llama_reasoning": {
+                    "health_score_reasoning": f"Your health score of {algorithm_results['health_score']}/100 is based on evidence-based medical algorithms considering your age, lifestyle factors, and risk assessments.",
+                    "lifestyle_improvements": algorithm_results["comprehensive_recommendations"][:5],
+                    "personalized_insights": ["Assessment completed using validated clinical algorithms", "AI service temporarily unavailable", "Consult healthcare providers for personalized medical advice"]
+                }
             }
+            
+            return fallback_predictions
         
-        # Convert algorithm results to expected format with Llama-4 insights
-        ai_predictions = {
-            "predictions": algorithm_results["risk_assessments"],
-            "model_version": f"{algorithm_results['algorithm_framework']} + Llama-4 Reasoning",
-            "prediction_date": algorithm_results["assessment_date"],
-            "confidence_scores": {
-                assessment["disease_name"].lower().replace(" ", "_"): assessment["confidence_score"] / 100
-                for assessment in algorithm_results["risk_assessments"]
-            },
-            "overall_assessment": {
-                "health_score": algorithm_results["health_score"],
-                "primary_concerns": [],
-                "positive_factors": [],
-                "immediate_actions": algorithm_results["comprehensive_recommendations"][:3]
-            },
-            "life_expectancy": algorithm_results["life_expectancy"],
-            "llama_reasoning": llama_reasoning,
-            "comprehensive_recommendations": algorithm_results["comprehensive_recommendations"],
-            "analysis_notes": f"Evidence-based medical algorithms with Llama-4 AI reasoning. Life expectancy: {algorithm_results['life_expectancy']['current_life_expectancy']} years"
-        }
-        
-        return ai_predictions
-        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(

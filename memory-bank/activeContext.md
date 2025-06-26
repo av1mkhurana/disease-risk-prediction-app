@@ -1,7 +1,9 @@
 # Active Context - Dashboard Implementation
 
 ## Current Work Focus
-Successfully completed the Groq AI integration to replace static ML models with dynamic, AI-powered disease risk predictions using Llama-4. The system now generates personalized, assessment-based results that adapt to each user's unique health profile.
+**FIXED STATIC RESULTS ISSUE**: Successfully resolved the problem where assessment results were showing as static. The prediction endpoint now properly uses Groq AI with Llama-4 as the primary prediction method, generating truly dynamic, personalized results based on actual user assessment data.
+
+**Key Fix**: Modified the `/predict` endpoint to use `groq_service.predict_disease_risks(user_data)` as the primary method instead of static medical algorithms, ensuring each assessment generates unique, AI-powered predictions.
 
 ## Recent Changes
 ### Groq AI Integration (COMPLETED)
