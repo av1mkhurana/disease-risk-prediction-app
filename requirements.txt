@@ -1,0 +1,102 @@
+# Disease Risk Prediction App - Complete Requirements
+# This file contains all dependencies needed to run the application on another computer
+
+# ================================
+# SYSTEM REQUIREMENTS
+# ================================
+# Python 3.8+ (recommended: Python 3.9 or 3.10)
+# Node.js 16+ (recommended: Node.js 18 LTS)
+# npm 8+ (comes with Node.js)
+
+# ================================
+# BACKEND PYTHON DEPENDENCIES
+# ================================
+
+# FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Authentication and Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-decouple==3.8
+
+# Machine Learning
+scikit-learn==1.3.2
+pandas==2.1.3
+numpy==1.25.2
+joblib==1.3.2
+
+# Data validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# HTTP client for Groq AI
+httpx==0.25.2
+
+# Supabase integration
+supabase==2.3.4
+postgrest==0.13.2
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Development tools
+black==23.11.0
+flake8==6.1.0
+isort==5.12.0
+
+# CORS support
+python-cors==1.7.0
+
+# Encryption
+cryptography==41.0.8
+
+# ================================
+# FRONTEND NODE.JS DEPENDENCIES
+# ================================
+# These are managed by package.json in the frontend/ directory
+# Run: npm install in the frontend/ directory to install:
+#
+# Core React dependencies:
+# - react@^18.2.0
+# - react-dom@^18.2.0
+# - typescript@^4.9.5
+# - react-scripts@5.0.1
+#
+# UI Framework:
+# - @mui/material@^5.14.20
+# - @mui/icons-material@^5.14.19
+# - @emotion/react@^11.11.1
+# - @emotion/styled@^11.11.0
+#
+# Charts and Visualization:
+# - chart.js@^4.4.0
+# - react-chartjs-2@^5.2.0
+# - @mui/x-charts@^6.18.1
+#
+# Backend Integration:
+# - @supabase/supabase-js@^2.50.0
+# - axios@^1.6.2
+#
+# Routing and Forms:
+# - react-router-dom@^6.20.1
+# - react-hook-form@^7.48.2
+
+# ================================
+# INSTALLATION NOTES
+# ================================
+# 1. Install Python dependencies: pip install -r requirements.txt
+# 2. Install Node.js dependencies: cd frontend && npm install
+# 3. Set up environment variables (see DEPLOYMENT_GUIDE.md)
+# 4. Configure Supabase and Groq API keys
+# 5. Run backend: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 6. Run frontend: cd frontend && npm start
